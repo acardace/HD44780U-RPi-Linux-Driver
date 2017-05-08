@@ -49,6 +49,7 @@ static int pin_rs = 16;
 static int pin_rw = 26;
 static int pin_e = 25;
 module_param(modeset, int, 0444);
+module_param(max_chars, int, 0444);
 module_param(pin_d4, int, 0444);
 module_param(pin_d5, int, 0444);
 module_param(pin_d6, int, 0444);
@@ -62,13 +63,13 @@ static struct gpio_desc *init_gpio_out(unsigned int n)
     struct gpio_desc *gpio;
     gpio = gpio_to_desc(n);
     if (IS_ERR(gpio)) {
-	pr_err("hitachi-lcd: failed gpio %d allocation\n", n);
-	return NULL;
+        pr_err("hitachi-lcd: failed gpio %d allocation\n", n);
+        return NULL;
     }
     if (gpiod_direction_output(gpio, GPIOD_OUT_LOW)) {
-	pr_err("hitachi-lcd: failed set gpio direction\n");
-	gpiod_put(gpio);
-	return NULL;
+        pr_err("hitachi-lcd: failed set gpio direction\n");
+        gpiod_put(gpio);
+        return NULL;
     }
     return gpio;
 }
@@ -77,15 +78,15 @@ static void put_gpios(struct hitachi_lcd *lcd)
 {
     int i;
     for (i = 0; i < 4; i++) {
-	if (lcd->data[i])
-	    gpiod_put(lcd->data[i]);
+        if (lcd->data[i])
+            gpiod_put(lcd->data[i]);
     }
     if (lcd->rs)
-	gpiod_put(lcd->rs);
+        gpiod_put(lcd->rs);
     if (lcd->rw)
-	gpiod_put(lcd->rw);
+        gpiod_put(lcd->rw);
     if (lcd->e)
-	gpiod_put(lcd->e);
+        gpiod_put(lcd->e);
 }
 
 static void clear_data_gpios(struct hitachi_lcd *lcd)
@@ -112,7 +113,7 @@ static void send_command(struct hitachi_lcd *lcd)
 }
 
 static void set_display(struct hitachi_lcd *lcd, unsigned display,
-	unsigned cursor, unsigned blink)
+                        unsigned cursor, unsigned blink)
 {
     clear_all_gpios(lcd);
     send_command(lcd);
@@ -123,8 +124,7 @@ static void set_display(struct hitachi_lcd *lcd, unsigned display,
     send_command(lcd);
 }
 
-static void setmode_4bit(struct hitachi_lcd *lcd,
-	unsigned line_no)
+static void setmode_4bit(struct hitachi_lcd *lcd, unsigned line_no)
 {
     clear_all_gpios(lcd);
     gpiod_set_value(lcd->data[1], 1);
@@ -159,13 +159,13 @@ static void lcd_putchar(struct hitachi_lcd *lcd, char c)
     /* 1st nibble */
     gpiod_set_value(lcd->rs, 1);
     for (i = 4; i < 8; i++) {
-	gpiod_set_value(lcd->data[i-4], (c & (1<<i)) >> i );
+        gpiod_set_value(lcd->data[i - 4], (c & (1 << i)) >> i);
     }
     send_command(lcd);
 
     /* 2nd nibble */
     for (i = 0; i < 4; i++) {
-	gpiod_set_value(lcd->data[i], (c & (1<<i)) >> i );
+        gpiod_set_value(lcd->data[i], (c & (1 << i)) >> i);
     }
     send_command(lcd);
 }
@@ -174,38 +174,36 @@ static void lcd_puts(struct hitachi_lcd *lcd, char *s, size_t size)
 {
     int i;
     for (i = 0; i < size; i++) {
-	if (lcd->index > max_chars) {
-	    lcd->index = 0;
-	    clear_display(lcd);
-	    msleep(100);
-	}
-	if (s[i] == '\n')
-	    continue;
-	lcd_putchar(lcd, s[i]);
-	lcd->index++;
+        if (lcd->index > max_chars) {
+            lcd->index = 0;
+            clear_display(lcd);
+            msleep(100);
+        }
+        if (s[i] == '\n')
+            continue;
+        lcd_putchar(lcd, s[i]);
+        lcd->index++;
     }
 }
 
-ssize_t lcd_write(struct file *file, const char __user *from,
-	size_t size, loff_t *off)
+ssize_t lcd_write(struct file *file, const char __user *from, size_t size,
+                  loff_t *off)
 {
     size_t read_size;
 
     if (size < 1)
-	return size;
+        return size;
     mutex_lock(&hitachi_lcd_lock);
-    read_size = simple_write_to_buffer(lcd.buf, size,
-	    off, from, BUF_SIZE);
+    read_size = simple_write_to_buffer(lcd.buf, size, off, from, BUF_SIZE);
     if (read_size > 0) {
-	lcd_puts(&lcd, lcd.buf, read_size);
+        lcd_puts(&lcd, lcd.buf, read_size);
     }
     mutex_unlock(&hitachi_lcd_lock);
     return read_size;
 }
 
 static struct file_operations lcd_ops = {
-    .write = lcd_write,
-    .read = NULL,
+    .write = lcd_write, .read = NULL,
 };
 
 static struct miscdevice lcd_device = {
@@ -222,29 +220,29 @@ static int __init hitachi_lcd_load(void)
     /* lcd char buffer */
     lcd.buf = kmalloc(BUF_SIZE, GFP_KERNEL);
     if (!lcd.buf)
-	return -ENOMEM;
+        return -ENOMEM;
 
     lcd.data[0] = init_gpio_out(pin_d4); /* D4 */
     lcd.data[1] = init_gpio_out(pin_d5); /* D5 */
     lcd.data[2] = init_gpio_out(pin_d6); /* D6 */
     lcd.data[3] = init_gpio_out(pin_d7); /* D7 */
-    lcd.rs = init_gpio_out(pin_rs); /* RS */
-    lcd.rw = init_gpio_out(pin_rw); /* RW */
-    lcd.e = init_gpio_out(pin_e); /* E */
-    lcd.index = 0; /* next position in the lcd */
+    lcd.rs = init_gpio_out(pin_rs);      /* RS */
+    lcd.rw = init_gpio_out(pin_rw);      /* RW */
+    lcd.e = init_gpio_out(pin_e);        /* E */
+    lcd.index = 0;                       /* next position in the lcd */
 
     /* check correct init of gpios */
     if (!lcd.rs || !lcd.rw || !lcd.e)
-	goto cleanup;
+        goto cleanup;
     for (i = 0; i < 4; i++) {
-	if (!lcd.data[i])
-	    goto cleanup;
+        if (!lcd.data[i])
+            goto cleanup;
     }
     /* init display */
     /* set modeset to 0 if the display
      * has not been HW reinit */
     if (modeset)
-	setmode_4bit(&lcd, LINES_1);
+        setmode_4bit(&lcd, LINES_1);
     set_display(&lcd, DISPLAY_ON, CURSOR, BLINK);
     entry_mode_set(&lcd);
     clear_display(&lcd);
