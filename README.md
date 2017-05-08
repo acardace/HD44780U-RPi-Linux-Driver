@@ -1,5 +1,5 @@
 # HD44780U-RPi-Linux-Driver
-Hitachi HD44780U LCD Display Linux driver for Raspberry Pi, though it can be easily adapted for other boards, the driver itself only needs to know at which gpio pin is connected each pin of the LCD controller.
+Hitachi HD44780U LCD Display Linux Kernel device driver for Raspberry Pi, though it can be easily adapted for other boards, the driver itself only needs to know at which gpio pin is connected each pin of the LCD controller.
 Therefore the only thing to do is hooking up the Hitachi HD44780U to your board and supply the correct gpio numbering to the module parameters exposed by the device driver.
 # Writing to the LCD
 ```
